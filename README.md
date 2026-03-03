@@ -166,7 +166,25 @@ This is structurally distinct from a message that was never proposed.
 
 ---
 
-## 8. Reference Demonstrations
+## 8. Verification
+
+**Transport-invariant** — ISO 8583 and HTTP envelopes with identical policy vectors produce identical results. Transport type does not affect decision outcome.
+
+**Deterministic by construction (hash-stable evaluation)** — evaluation outcome (`result`, `reason_code`) is fixed for a given policy vector across any number of invocations. `proof_hash` is unique per invocation by construction, embedding `decision_id` and timestamp to prevent replay.
+
+```
+tests/test_pattern_invariant.py   7 tests — transport invariance, fail-closed, negative proof
+tests/test_determinism.py         5 tests — result stability (N=100), proof_hash validity, uniqueness, independence
+```
+
+Run:
+```bash
+python3 -m pytest tests/ -v
+```
+
+---
+
+## 9. Reference Demonstrations
 
 Same Core. Different Transport. Identical Boundary Pattern.
 
@@ -196,7 +214,7 @@ Minimal TCP gate before `socket.write()`.
 
 ---
 
-## 9. Non-Goals
+## 10. Non-Goals
 
 This profile does not define:
 
@@ -208,7 +226,7 @@ This profile does not define:
 
 ---
 
-## 10. Repository Structure
+## 11. Repository Structure
 
 ```
 /docs
