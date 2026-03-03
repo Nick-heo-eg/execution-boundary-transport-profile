@@ -15,7 +15,8 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from boundary_core.evaluator import TransportEnvelope, Decision, Ledger, evaluate  # noqa: F401
+from boundary_core.evaluator import TransportEnvelope, Decision, evaluate  # noqa: F401
+from boundary_core.ledger import MerkleLedger
 
 POLICY = {
     "max_amount": 500_000,
@@ -88,7 +89,7 @@ SCENARIOS = [
 
 
 def main():
-    ledger = Ledger()
+    ledger = MerkleLedger()
 
     print("=" * 70)
     print("  ISO 8583 Transport Gate Demo")
@@ -124,7 +125,8 @@ def main():
               f"action={p['mti']}/{p['stan']}  proof={d['proof_hash'][:16]}...")
 
     print(f"\n  Total:      {len(ledger.entries)} decisions — {ledger.allow_count()} ALLOW / {ledger.deny_count()} DENY")
-    print(f"  Ledger root hash: {ledger.root_hash}")
+    print(f"  Merkle root: {ledger.root_hash}")
+    print(f"  Verified:    {ledger.verify(ledger.root_hash)}")
     print("  Execution is not default.\n")
 
 

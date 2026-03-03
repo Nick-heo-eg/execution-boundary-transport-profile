@@ -15,7 +15,8 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from boundary_core.evaluator import TransportEnvelope, Ledger, evaluate
+from boundary_core.evaluator import TransportEnvelope, evaluate
+from boundary_core.ledger import MerkleLedger
 
 
 def build_envelope(method: str, path: str, body: dict, host: str) -> TransportEnvelope:
@@ -63,7 +64,7 @@ SCENARIOS = [
 
 
 def main():
-    ledger = Ledger()
+    ledger = MerkleLedger()
 
     print("=" * 70)
     print("  HTTP Transport Gate Demo")
@@ -100,7 +101,8 @@ def main():
               f"amount={p['amount']:>7}  proof={d['proof_hash'][:16]}...")
 
     print(f"\n  Total:      {len(ledger.entries)} decisions — {ledger.allow_count()} ALLOW / {ledger.deny_count()} DENY")
-    print(f"  Ledger root hash: {ledger.root_hash}")
+    print(f"  Merkle root: {ledger.root_hash}")
+    print(f"  Verified:    {ledger.verify(ledger.root_hash)}")
     print("  Execution is not default.\n")
 
 
