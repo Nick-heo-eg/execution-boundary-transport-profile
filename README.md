@@ -6,6 +6,18 @@ Extends the core boundary model for systems where side-effects occur at a networ
 
 ---
 
+## Layered Model
+
+```
+execution-boundary-core-spec          ← structural definition
+         ↑
+execution-boundary-transport-profile  ← this repository (transport profile)
+         ↑
+execution-gate                        (reference implementation)
+```
+
+---
+
 ## Dependency
 
 **[execution-boundary-core-spec v0.1](https://github.com/Nick-heo-eg/execution-boundary-core-spec)**
