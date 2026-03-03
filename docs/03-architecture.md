@@ -9,61 +9,47 @@ Every claim on this page is verifiable by running the test suite.
 
 ## 1. What This Is
 
-An execution boundary is a structural constraint: a proposed action must pass through an evaluator before it can be executed. If the evaluator denies it, the action does not occur — and that denial is recorded.
+An execution boundary is a structural constraint:
+a proposed action must be evaluated before it can be executed.
+If the evaluator denies it, the action does not occur — and that denial is recorded.
 
-This profile applies that constraint to transport-layer systems, where the side-effect is a network send:
-
-```
-socket.write()   http_client.post()   channel.publish()   stub.Method()
-```
+This is not a firewall.
+This is not a heuristic guard.
+This is not a probabilistic policy layer.
+This is a deterministic execution boundary.
 
 The gate sits between the decision to send and the send call itself.
-
-This is not a firewall. It is not a rate limiter. It is not a content filter.
-It is a pre-execution authorization boundary with cryptographic proof of every decision.
+Authorization is pre-execution. Execution is not the default.
 
 ---
 
 ## 2. Core Contract
 
-```
-TransportEnvelope
-    ↓
-evaluate(envelope)          ← pure function, no side effects, no I/O
-    ↓
-Decision(result, proof_hash)
-    ↓
-Ledger.append()             ← unconditional: ALLOW and DENY both recorded
-    ↓
-if ALLOW → send()           ← execution boundary: the only path to the wire
-```
-
-Five properties hold at every evaluation:
+Five properties hold at every evaluation, across every transport type:
 
 | Property | Guarantee |
 |---|---|
-| Deterministic | Same policy vector → same result, every time |
-| Transport-independent | ISO 8583 and HTTP produce identical outcomes for identical inputs |
-| Fail-closed | Missing or invalid amount → DENY, never ALLOW |
-| Proof-bearing | Every decision carries a unique SHA-256 `proof_hash` |
-| Append-only | DENY entries cannot be removed or suppressed from the ledger |
+| Deterministic Evaluation | Same envelope → same decision, every time |
+| Transport Independence | Core logic unaffected by transport type |
+| Pre-Execution Decision | Execution occurs only after ALLOW |
+| Tamper Evidence | Merkle root detects any mutation to any entry |
+| External Verifiability | Canonical export + root replay without live system |
+
+These are not aspirational. Each property has automated tests that verify it directly.
 
 ---
 
-## 3. Threat Model
+## 3. Comparison
 
-This boundary addresses a specific failure mode: execution that proceeds without a recorded authorization decision.
+| Model | Characteristic |
+|---|---|
+| Prompt-based guard | Outcome varies by input phrasing — non-deterministic by construction |
+| Post-hoc logging | Records what happened; execution has already occurred |
+| Heuristic filter | Threshold-based, subject to tuning and drift |
+| **Execution Boundary** | **Deterministic outcome + pre-execution decision + tamper-evident record** |
 
-| Pattern | Problem | This boundary |
-|---|---|---|
-| Randomized guard | Non-deterministic — same input may produce different outcome | Evaluator is pure: determinism verified at N=100 |
-| LLM-based policy | Probabilistic by construction — not auditable | No probabilistic component anywhere in the evaluation path |
-| Post-hoc logging | Records what happened, not what was authorized | Decision is recorded before execution. DENY is recorded even though nothing happened |
-| Silent suppression | Denial leaves no trace | Every DENY appended to ledger with `proof_hash` |
-| Log mutation | Audit trail can be altered | Merkle root: any entry mutation changes the root |
-
-The boundary does not prevent a caller from bypassing it entirely.
-What it guarantees: if the boundary is used, the record is complete and tamper-evident.
+The distinction is structural, not qualitative.
+A system that evaluates after execution, or that produces non-deterministic results, is not an execution boundary regardless of its name.
 
 ---
 
@@ -71,66 +57,62 @@ What it guarantees: if the boundary is used, the record is complete and tamper-e
 
 Ledger integrity is enforced at three layers:
 
-**Per-decision**: `proof_hash = SHA-256(decision_id + action_id + result + timestamp)`
-Unique per invocation. Non-replayable. Cannot be fabricated without the original inputs.
+**Layer 1 — Per-decision: `proof_hash`**
+```
+proof_hash = SHA-256(decision_id + action_id + result + timestamp)
+```
+Unique per invocation. Non-replayable. Present on every decision — ALLOW and DENY alike.
 
-**Per-ledger (in-memory)**: Merkle root over canonical JSON of all entries.
-`leaf = SHA-256(canonical_json(entry))` where canonical = `sort_keys=True, separators=(",", ":")`.
+**Layer 2 — Per-ledger: Merkle root**
+```
+leaf      = SHA-256(canonical_json(entry))
+root      = Merkle tree over all leaves
+canonical = sort_keys=True, separators=(",", ":")
+```
 Any mutation to any field of any entry changes the root.
+Order matters — entries cannot be resequenced without detection.
 
-**Per-export (on-disk)**: `export_canonical(path)` writes the full ledger with its Merkle root embedded.
-`verify_from_file(path, root)` recomputes the root from the file and compares — no live ledger required.
-
+**Layer 3 — Per-export: canonical file verification**
 ```
-entries[0..n]
-    ↓ SHA-256(canonical JSON)
-leaf_hashes[0..n]
-    ↓ Bitcoin-style Merkle tree (odd count: last leaf duplicated)
-merkle_root
-    ↓ written to ledger_YYYYMMDD.json
-export file
-    ↓ verify_from_file(path, stored_root)
-True / False
+export_canonical(path) → writes ledger + merkle_root to JSON file
+verify_from_file(path, stored_root) → recomputes root from file, compares
 ```
+Verification requires only the file and the stored root.
+No live system. No shared state. Independent replay.
 
 ---
 
 ## 5. External Verification
 
-The exported ledger file is self-contained. Verification requires only:
-- the file
-- the expected root (stored separately from the file)
-
 ```python
 from boundary_core.ledger import verify_from_file
 
+# Stored root was captured at export time, held separately
 result = verify_from_file("ledger_20260303_iso8583.json", stored_root)
 # True  → ledger is intact
 # False → at least one entry was modified after export
 ```
 
 This enables verification by any party with access to the file and the root,
-without access to the system that produced the ledger.
+without access to the system that produced the ledger, at any point after export.
 
 ---
 
 ## 6. Invariant Proof
 
-The following properties are verified automatically on every run:
+Five categories of automated tests verify the boundary properties directly:
+
+| Category | What it verifies |
+|---|---|
+| Invariant tests | Transport type does not affect decision outcome (ISO 8583 vs HTTP, identical policy vector) |
+| Determinism tests | Same input → same result across N=100 evaluations; fail-closed on missing amount |
+| Uniqueness tests | `proof_hash` is unique per invocation; no cross-contamination between evaluations |
+| Merkle tamper tests | Result mutation, amount mutation, append order all change the root |
+| Export replay tests | `verify_from_file` passes on intact export; fails on any file mutation |
 
 ```
-python3 -m pytest tests/ -v
+python3 -m pytest tests/ -v   # 28 passed
 ```
-
-| Test file | Coverage | Count |
-|---|---|---|
-| `test_pattern_invariant.py` | Transport independence (ISO 8583 / HTTP), fail-closed, negative proof, proof_hash presence | 7 |
-| `test_determinism.py` | Result stability N=100, reason_code stability, proof_hash format (valid SHA-256), uniqueness per invocation, independence across evaluations | 5 |
-| `test_merkle_ledger.py` | Root determinism, tamper detection (result mutation, amount mutation), append sensitivity, order sensitivity, verify round-trip, empty/single-entry edge cases | 9 |
-| `test_canonical_export.py` | Export structure, verify pass/fail, file-level tamper detection, idempotency, canonical JSON format | 7 |
-| **Total** | | **28** |
-
-All 28 tests are structural — they verify the boundary properties directly, not indirectly through integration paths.
 
 ---
 
