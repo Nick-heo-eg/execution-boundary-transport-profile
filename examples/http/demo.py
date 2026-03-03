@@ -16,7 +16,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from boundary_core.evaluator import TransportEnvelope, evaluate
-from boundary_core.ledger import MerkleLedger
+from boundary_core.ledger import MerkleLedger, verify_from_file
 
 
 def build_envelope(method: str, path: str, body: dict, host: str) -> TransportEnvelope:
@@ -100,9 +100,15 @@ def main():
         print(f"  {d['result']:5s}  {d['reason_code']:25s}  "
               f"amount={p['amount']:>7}  proof={d['proof_hash'][:16]}...")
 
+    import datetime
+    date_tag = datetime.date.today().strftime("%Y%m%d")
+    export_path = f"ledger_{date_tag}_http.json"
+    root = ledger.export_canonical(export_path)
+
     print(f"\n  Total:      {len(ledger.entries)} decisions — {ledger.allow_count()} ALLOW / {ledger.deny_count()} DENY")
-    print(f"  Merkle root: {ledger.root_hash}")
-    print(f"  Verified:    {ledger.verify(ledger.root_hash)}")
+    print(f"  Merkle root: {root}")
+    print(f"  Exported:    {export_path}")
+    print(f"  Verified:    {verify_from_file(export_path, root)}")
     print("  Execution is not default.\n")
 
 

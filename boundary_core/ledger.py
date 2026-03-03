@@ -13,6 +13,7 @@ Canonical form: json.dumps(entry, sort_keys=True, separators=(",", ":"))
 
 import hashlib
 import json
+import os
 from typing import Any, Dict, List, Optional
 
 
@@ -112,8 +113,55 @@ class MerkleLedger:
         recomputed = _merkle_root([_leaf_hash(e) for e in self._entries])
         return recomputed == expected_root
 
+    def export_canonical(self, path: str) -> str:
+        """
+        Write canonical ledger snapshot to a JSON file.
+
+        Format:
+          {
+            "merkle_root": "<64-char hex>",
+            "entry_count": <int>,
+            "entries": [ ... ]   ← canonical JSON order (sort_keys)
+          }
+
+        Returns the merkle_root written. The caller can store this root
+        separately and later pass it to verify_from_file() for independent
+        verification.
+        """
+        root = self.root_hash
+        snapshot = {
+            "merkle_root": root,
+            "entry_count": len(self._entries),
+            "entries": self._entries,
+        }
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(_canonical(snapshot))
+        return root
+
     def allow_count(self) -> int:
         return sum(1 for e in self._entries if e["decision"]["result"] == "ALLOW")
 
     def deny_count(self) -> int:
         return sum(1 for e in self._entries if e["decision"]["result"] == "DENY")
+
+
+# ── Standalone verification ───────────────────────────────────────────────────
+
+def verify_from_file(path: str, expected_root: str) -> bool:
+    """
+    Load a canonical ledger export and verify its Merkle root.
+
+    Independent of any MerkleLedger instance — operates purely on the
+    exported file. Returns True iff the recomputed root matches expected_root.
+
+    Usage:
+        root = ledger.export_canonical("ledger_20260303.json")
+        assert verify_from_file("ledger_20260303.json", root)
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        snapshot = json.loads(f.read())
+
+    entries = snapshot.get("entries", [])
+    recomputed = _merkle_root([_leaf_hash(e) for e in entries])
+    return recomputed == expected_root
