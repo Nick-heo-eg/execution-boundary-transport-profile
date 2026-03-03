@@ -149,8 +149,13 @@ def evaluate(envelope: TransportEnvelope) -> Decision:
 # ── Ledger (append-only, records DENY and ALLOW) ──────────────────────────────
 
 _ledger: list = []
+_ledger_chain: str = "0" * 64  # genesis hash
 
 def ledger_append(envelope: TransportEnvelope, decision: Decision) -> None:
+    global _ledger_chain
+    _ledger_chain = hashlib.sha256(
+        (_ledger_chain + decision.proof_hash).encode()
+    ).hexdigest()
     _ledger.append({
         "envelope": {
             "action_id": envelope.action_id,
@@ -195,10 +200,14 @@ def gate_and_send(msg: dict, destination: str) -> Decision:
     decision = evaluate(envelope)
     ledger_append(envelope, decision)
 
+    # ── EXECUTION BOUNDARY ──────────────────────────────────────────────────
+    # send() is called only when decision.result == "ALLOW".
+    # No other code path may trigger mock_send().
     if decision.allowed:
         mock_send(envelope)
     else:
         print(f"    [GATE]    >>> send SUPPRESSED — {decision.reason_code}: {decision.reason}")
+    # ────────────────────────────────────────────────────────────────────────
 
     return decision
 
@@ -257,7 +266,8 @@ def main():
 
     allow_count = sum(1 for e in _ledger if e["decision"]["result"] == "ALLOW")
     deny_count  = sum(1 for e in _ledger if e["decision"]["result"] == "DENY")
-    print(f"\n  Total: {len(_ledger)} decisions — {allow_count} ALLOW / {deny_count} DENY")
+    print(f"\n  Total:      {len(_ledger)} decisions — {allow_count} ALLOW / {deny_count} DENY")
+    print(f"  Ledger root hash: {_ledger_chain}")
     print("  Execution is not default.\n")
 
 
