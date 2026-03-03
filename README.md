@@ -6,6 +6,34 @@ Extends the core boundary model for systems where side-effects occur at a networ
 
 ---
 
+## Architecture
+
+Pre-execution authorization boundary for transport-layer systems.
+Deterministic evaluation, Merkle-rooted ledger, canonical export with independent replay verification.
+
+→ **[docs/03-architecture.md](docs/03-architecture.md)**
+
+---
+
+## Verification
+
+```bash
+# Run full test suite (28 tests)
+python3 -m pytest tests/ -v
+
+# Run demos — each exports a canonical ledger and verifies it
+python3 examples/iso8583/demo.py
+python3 examples/http/demo.py
+```
+
+Export → verify flow:
+```python
+from boundary_core.ledger import verify_from_file
+verify_from_file("ledger_20260303_iso8583.json", stored_root)  # True / False
+```
+
+---
+
 ## Layered Model
 
 ```
@@ -166,25 +194,7 @@ This is structurally distinct from a message that was never proposed.
 
 ---
 
-## 8. Verification
-
-**Transport-invariant** — ISO 8583 and HTTP envelopes with identical policy vectors produce identical results. Transport type does not affect decision outcome.
-
-**Deterministic by construction (hash-stable evaluation)** — evaluation outcome (`result`, `reason_code`) is fixed for a given policy vector across any number of invocations. `proof_hash` is unique per invocation by construction, embedding `decision_id` and timestamp to prevent replay.
-
-```
-tests/test_pattern_invariant.py   7 tests — transport invariance, fail-closed, negative proof
-tests/test_determinism.py         5 tests — result stability (N=100), proof_hash validity, uniqueness, independence
-```
-
-Run:
-```bash
-python3 -m pytest tests/ -v
-```
-
----
-
-## 9. Reference Demonstrations
+## 8. Reference Demonstrations
 
 Same Core. Different Transport. Identical Boundary Pattern.
 
@@ -214,7 +224,7 @@ Minimal TCP gate before `socket.write()`.
 
 ---
 
-## 10. Non-Goals
+## 9. Non-Goals
 
 This profile does not define:
 
@@ -226,19 +236,27 @@ This profile does not define:
 
 ---
 
-## 11. Repository Structure
+## 10. Repository Structure
 
 ```
 /docs
-  00-overview.md
-  01-evaluation-boundary.md
-  02-iso8583-analysis.md
+  00-overview.md            ← reading order + profile scope
+  01-evaluation-boundary.md ← gate position
+  02-iso8583-analysis.md    ← reference transport analysis
+  03-architecture.md        ← core contract, threat model, integrity, verification
 /spec
   transport-envelope.schema.json
+/boundary_core
+  evaluator.py              ← TransportEnvelope, Decision, evaluate()
+  ledger.py                 ← MerkleLedger, export_canonical(), verify_from_file()
 /examples
   /iso8583
   /http
-  /socket
+/tests
+  test_pattern_invariant.py
+  test_determinism.py
+  test_merkle_ledger.py
+  test_canonical_export.py
 README.md
 ```
 

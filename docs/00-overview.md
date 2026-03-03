@@ -1,5 +1,14 @@
 # 00. Overview
 
+## Reading Order
+
+1. [00-overview.md](00-overview.md) — what this profile defines
+2. [01-evaluation-boundary.md](01-evaluation-boundary.md) — where the gate sits
+3. [03-architecture.md](03-architecture.md) — core contract, threat model, integrity, verification
+4. [02-iso8583-analysis.md](02-iso8583-analysis.md) — reference analysis: ISO 8583 gateway
+
+---
+
 ## What This Profile Defines
 
 This profile extends the Execution Boundary Core Spec for transport-layer systems.
