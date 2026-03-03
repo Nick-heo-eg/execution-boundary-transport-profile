@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Nick-heo-eg/execution-boundary-transport-profile/spec/transport-envelope.schema.json",
+  "$comment": "Extends action-envelope.schema.json from execution-boundary-core-spec commit d3e239b. Core fields are not modified.",
+  "title": "TransportActionEnvelope",
+  "description": "Transport-layer extension of ActionEnvelope. Adds transport-specific fields. Core fields are inherited and unchanged.",
+  "type": "object",
+  "required": [
+    "action_id", "action_type", "resource", "parameters", "context_hash", "timestamp",
+    "transport_type", "destination", "direction"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "action_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Inherited from Core Spec. Unique identifier for this action instance."
+    },
+    "action_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Inherited from Core Spec. SHOULD be 'transport.send' or a namespaced variant such as 'transport.iso8583.forward'."
+    },
+    "resource": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Inherited from Core Spec. Target resource identifier. For transport, this is typically the destination endpoint."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Inherited from Core Spec. Transport-specific parameters (e.g. headers, message fields)."
+    },
+    "context_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Inherited from Core Spec. Hash of execution context at proposal time."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Inherited from Core Spec. ISO 8601 timestamp of when the action was proposed."
+    },
+    "transport_type": {
+      "type": "string",
+      "enum": ["tcp", "http", "grpc", "iso8583", "amqp", "kafka"],
+      "description": "Transport protocol identifier."
+    },
+    "destination": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Target endpoint. Format is transport-specific. Examples: '192.168.1.1:8583', 'https://api.example.com/endpoint', 'orders.topic'."
+    },
+    "payload_size": {
+      "type": ["number", "null"],
+      "description": "Byte length of the payload at proposal time. null if unavailable."
+    },
+    "protocol_version": {
+      "type": ["string", "null"],
+      "description": "Protocol version string. null if not applicable. Examples: 'HTTP/1.1', 'ISO-8583-1987'."
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["outbound", "inbound"],
+      "description": "outbound: gateway initiates send to upstream. inbound: gateway receives and forwards inward."
+    }
+  }
+}
