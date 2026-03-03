@@ -1,30 +1,59 @@
-# HTTP Gate Demo
+# HTTP Transport Gate Demo
 
-Demonstrates transport gate before HTTP request dispatch.
+**Same Core. Different Transport. Identical Boundary Pattern.**
+
+No server. No network. Transport envelope simulation only.
+
+## Run
+
+```bash
+python3 examples/http/demo.py
+```
+
+## What This Demonstrates
+
+| Item | Status |
+|---|---|
+| TransportEnvelope constructed from HTTP request | ✔ |
+| Evaluator — pure function, no side-effects | ✔ |
+| Decision with `proof_hash` | ✔ |
+| Ledger records DENY (negative proof) | ✔ |
+| `send_http()` called only on ALLOW | ✔ |
+| send suppression explicitly logged | ✔ |
+| No external dependencies | ✔ |
 
 ## Gate Point
 
-Between request construction and `http_client.post()` / `fetch()` call.
-
-## Envelope Fields
-
-```json
-{
-  "action_type": "transport.http.post",
-  "transport_type": "http",
-  "destination": "https://api.example.com/v1/payment",
-  "payload_size": 256,
-  "protocol_version": "HTTP/1.1",
-  "direction": "outbound"
-}
+```
+POST /transfer (body constructed)
+   ↓
+TransportEnvelope.from_http()
+   ↓
+evaluate(envelope)              ← side-effect free
+   ↓
+Decision + ledger_append()      ← unconditional
+   ↓
+── EXECUTION BOUNDARY ──────────
+if decision.result == "ALLOW":
+    send_http(envelope)         ← only here
+else:
+    SUPPRESSED
+────────────────────────────────
 ```
 
-## Scenarios
+## Policy
 
-1. Allowed destination → ALLOW → request dispatched
-2. Blocked destination → DENY → request suppressed, DENY logged
-3. Payload size exceeded → DENY
+```
+amount <= 100,000  →  ALLOW
+amount >  100,000  →  DENY (AMOUNT_EXCEEDS_LIMIT)
+```
 
-## Status
+## Relationship to ISO 8583 Demo
 
-Pending implementation.
+Both demos use the same Core Spec pattern:
+
+```
+Envelope → Evaluator → Decision → Ledger → send() (ALLOW only)
+```
+
+The transport type changes. The boundary structure does not.

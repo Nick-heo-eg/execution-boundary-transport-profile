@@ -168,25 +168,31 @@ This is structurally distinct from a message that was never proposed.
 
 ## 8. Reference Demonstrations
 
-### ISO 8583
+Same Core. Different Transport. Identical Boundary Pattern.
 
-`/examples/iso8583/`
+### ISO 8583 — `examples/iso8583/demo.py`
 
-Demonstrates gate insertion between `queue.fetchToProcess()` and `socket.write()` in an ISO 8583 gateway. Based on structural analysis of [iso-8583-socket-queue](https://github.com/juks/iso-8583-socket-queue).
+```bash
+python3 examples/iso8583/demo.py
+```
 
-Gate point: `upstream.js` — between fetchToProcess() and socket.write(Buffer.concat(buf))
+Gate between `queue.fetchToProcess()` and `socket.write()` in an ISO 8583 gateway.
+5 scenarios — MTI filter, amount threshold, processing code block.
+Ledger root hash included.
 
-### HTTP
+### HTTP — `examples/http/demo.py`
 
-`/examples/http/`
+```bash
+python3 examples/http/demo.py
+```
 
-Gate applied before HTTP request dispatch. Evaluates method, destination, and payload size.
+Gate before `http_client.post()` dispatch.
+5 scenarios — amount threshold policy.
+Same Envelope → Evaluator → Decision → Ledger → send() pattern.
 
-### Socket
+### Socket — `examples/socket/` _(pending)_
 
-`/examples/socket/`
-
-Minimal TCP gate. Evaluates destination and payload before socket.write().
+Minimal TCP gate before `socket.write()`.
 
 ---
 
